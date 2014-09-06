@@ -5,8 +5,7 @@ require_relative "../lib/web_crawler"
 describe WebCrawler do
 
   describe '#parse' do
-    let(:url) { 'http://nokogiri.org' }
-    # let(:url) { 'http://google.com' }
+    let(:url) { 'https://joingrouper.com' }
 
     it "returns a crawler" do
       WebCrawler.crawl(url).must_be_instance_of WebCrawler
@@ -42,9 +41,5 @@ describe Page do
     it "internal links has no external links" do
       Page.parse(url).internal_links.first.must_match /^\/$/
     end
-
-    # it "stores links" do
-    #   Page.parse(url).links.must_equal ['jljlk']
-    # end
   end
 end

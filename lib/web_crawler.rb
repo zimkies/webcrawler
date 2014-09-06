@@ -1,4 +1,15 @@
 
+#
+# Things to do:
+#
+# Speed up with threads
+# Option for ignoring hash addresses
+# Option for ignoring query syntax
+# Option for ignoring http vs https
+# Option to slow down requests as a courtesy
+# Fix it for google - it seems to have some problems
+#
+#
 require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
@@ -9,9 +20,17 @@ class WebCrawler
 
   attr_accessor :pages, :url, :queue
 
+  def to_s
+    p "URL structure for: #{url}"
+    @pages.each do |page|
+      p "#{page}"
+    end
+    nil
+  end
+
   def self.crawl(url)
     crawler = self.new(url)
-    crawler.queue << url
+    crawler.queue << URI(url)
     crawler.crawl
     crawler
   end
@@ -24,10 +43,12 @@ class WebCrawler
 
   def crawl
     while url = @queue.shift
-      p "url #{url}"
-      page = Page.parse(url)
+      next if @pages[url.to_s]
+      page = Page.parse(url.to_s)
+      p page
+      @pages[url.to_s] = page
       @queue += page.internal_links.select do |link|
-        @pages[link].nil?
+        @pages[link.to_s].nil?
       end
     end
   end
@@ -37,10 +58,28 @@ class Page
 
   attr_accessor :url, :raw_links, :html, :js, :css, :images
 
+  def to_s
+    puts "Page: #{url}"
+    if internal_links.length > 0
+      puts "\t links:"
+      internal_links.each { |l| puts "\t\t#{l.to_s}"}
+    end
+    if images.length > 0
+      puts "\t images:"
+      images.each { |l| puts "\t\t#{l.to_s}"}
+    end
+    if css.length > 0
+      puts "\t css:"
+      css.each { |l| puts "\t\t#{l.to_s}"}
+    end
+    if js.length > 0
+      puts "\t js:"
+      js.each { |l| puts "\t\t#{l.to_s}"}
+    end
+  end
+
   def self.parse(url)
-    page = self.new url
-    page.parse
-    page
+    self.new(url).tap { |page| page.parse }
   end
 
   def initialize(url)
@@ -52,7 +91,6 @@ class Page
   end
 
   def parse
-
     @html = Nokogiri::HTML(open_url)
     parse_links
     parse_css
@@ -63,7 +101,7 @@ class Page
   def formatted_links
     page_uri = URI(url)
     @raw_links.map do |l|
-      URI.join(page_uri, URI(l))
+      URI.join(page_uri, URI(l || ""))
     end
   end
 
@@ -72,19 +110,27 @@ class Page
   end
 
   def parse_links
-    @raw_links = @html.css('a').map { |a| a['href'] }
+    @raw_links = @html.css('a')
+      .map { |a| a['href'] }
+      .reject{ |l| l.nil? || l.empty? }
   end
 
   def parse_css
-    @css = @html.css('link').map { |link| link['href'] }
+    @css = @html.css('link')
+      .map { |link| link['href'] }
+      .reject { |url| url.nil? || url.empty? }
   end
 
   def parse_js
-    @js = @html.css("script[type='text/javascript']").map { |script| script['src'] }
+    @js = @html.css("script[type='text/javascript']")
+      .map { |script| script['src'] }
+      .reject { |url| url.nil? || url.empty? }
   end
 
   def parse_images
-    @images = @html.css('img').map { |img| img['src'] }
+    @images = @html.css('img')
+      .map { |img| img['src'] }
+      .reject { |url| url.nil? || url.empty? }
   end
 
   def open_url
