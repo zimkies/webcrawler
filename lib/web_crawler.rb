@@ -1,4 +1,5 @@
-
+# Web Crawler. Run with a url argument via command line
+# Or require it and run from other ruby code.
 #
 # Things to do:
 #
@@ -10,23 +11,19 @@
 # Fix it for google - it seems to have some problems
 #
 #
+#
 require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
 require 'pry'
+require 'thread'
 
 # A class for parsing a url
 class WebCrawler
 
-  attr_accessor :pages, :url, :queue
+  attr_accessor :pages, :url, :queue, :thread_count
 
-  def to_s
-    p "URL structure for: #{url}"
-    @pages.each do |page|
-      p "#{page}"
-    end
-    nil
-  end
+  DEFAULT_THREAD_COUNT = 5
 
   def self.crawl(url)
     crawler = self.new(url)
@@ -37,20 +34,49 @@ class WebCrawler
 
   def initialize(url)
     @url = url
-    @queue = []
+    @queue = Queue.new
     @pages = {}
+    @threads = []
+    @thread_count = DEFAULT_THREAD_COUNT
   end
 
   def crawl
-    while url = @queue.shift
-      next if @pages[url.to_s]
-      page = Page.parse(url.to_s)
-      p page
-      @pages[url.to_s] = page
-      @queue += page.internal_links.select do |link|
-        @pages[link.to_s].nil?
+    thread_count.times do
+      @threads << create_thread
+    end
+
+    # Don't go any further until all our threads are blocking
+    while @queue.num_waiting < thread_count
+      sleep 1
+    end
+
+    # Exit the threads
+    @threads.each &:exit
+    return nil
+  end
+
+  # A thread that pops a url off the queue, processes it,
+  # And pushes it's links to be processed
+  def create_thread
+    Thread.new do
+      while url = @queue.shift
+        next if @pages[url.to_s]
+        page = Page.parse(url.to_s)
+        p page.url.to_s
+        @pages[url.to_s] = page
+        page.internal_links.select do |link|
+          @pages[link.to_s].nil?
+        end.each {|p| @queue << p }
       end
     end
+  end
+
+  def to_s
+    p "URL structure for: #{url}"
+    @pages.each do |page|
+      p "#{page}"
+    end
+    nil
   end
 end
 
@@ -98,6 +124,7 @@ class Page
     parse_images
   end
 
+  # Returns URI objects
   def formatted_links
     page_uri = URI(url)
     @raw_links.map do |l|
@@ -105,6 +132,7 @@ class Page
     end
   end
 
+  # Returns URI objects
   def internal_links
     formatted_links.select { |link| link.host == URI(url).host }
   end

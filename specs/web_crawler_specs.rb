@@ -6,13 +6,11 @@ describe WebCrawler do
 
   describe '#parse' do
     let(:url) { 'https://joingrouper.com' }
+    let(:parsed_crawler) { WebCrawler.crawl(url) }
 
-    it "returns a crawler" do
-      WebCrawler.crawl(url).must_be_instance_of WebCrawler
-    end
-
-    it "caches some pages" do
-      WebCrawler.crawl(url).pages.must_equal []
+    it "caches pages" do
+      parsed_crawler.must_be_instance_of WebCrawler
+      parsed_crawler.pages.length.must_be :>,  1
     end
   end
 end
@@ -38,8 +36,11 @@ describe Page do
       Page.parse(url).images.first.must_match /\.png/
     end
 
-    it "internal links has no external links" do
-      Page.parse(url).internal_links.first.must_match /^\/$/
+    it "internal links have no external links" do
+      Page.parse(url).internal_links.each do |l|
+        l.must_be_instance_of URI::HTTP
+        l.host.must_match URI(url).host
+      end
     end
   end
 end
