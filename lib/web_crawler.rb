@@ -182,3 +182,8 @@ class Page
     end
   end
 end
+
+if __FILE__ == $0
+  raise "usage: #{$0} url" unless ARGV.length == 1
+  WebCrawler.crawl(ARGV[0])
+end
