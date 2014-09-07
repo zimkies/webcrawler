@@ -42,7 +42,7 @@ class WebCrawler
 
   def crawl
     thread_count.times do
-      @threads << create_thread
+      @threads << UrlProcessor.new(queue, pages).tap(&:start)
     end
 
     # Don't go any further until all our threads are blocking
@@ -55,28 +55,41 @@ class WebCrawler
     return nil
   end
 
-  # A thread that pops a url off the queue, processes it,
-  # And pushes it's links to be processed
-  def create_thread
-    Thread.new do
-      while url = @queue.shift
-        next if @pages[url.to_s]
-        page = Page.parse(url.to_s)
-        p page.url.to_s
-        @pages[url.to_s] = page
-        page.internal_links.select do |link|
-          @pages[link.to_s].nil?
-        end.each {|p| @queue << p }
-      end
-    end
-  end
-
   def to_s
     p "URL structure for: #{url}"
     @pages.each do |page|
       p "#{page}"
     end
     nil
+  end
+end
+
+class UrlProcessor
+
+  def initialize(queue, pages)
+    @queue = queue
+    @pages = pages
+  end
+
+  def exit
+    @thread.exit
+  end
+
+  # A thread that pops a url off the queue, processes it,
+  # And pushes it's links to be processed into the queue
+  def start
+    @thread = Thread.new do
+      while url = @queue.shift
+        next if @pages[url.to_s]
+        page = Page.parse(url.to_s)
+        p page.url.to_s
+        @pages[url.to_s] = page
+        pages_to_queue = page.internal_links.select do |link|
+          @pages[link.to_s].nil?
+        end
+        pages_to_queue.each { |p| @queue << p }
+      end
+    end
   end
 end
 
