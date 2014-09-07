@@ -1,14 +1,14 @@
 # Web Crawler. Run with a url argument via command line
 # Or require it and run from other ruby code.
 #
-# Things to do:
+# TODO:
 #
-# Speed up with threads
 # Option for ignoring hash addresses
 # Option for ignoring query syntax
 # Option for ignoring http vs https
 # Option to slow down requests as a courtesy
 # Fix it for google - it seems to have some problems
+# Add incoming links
 #
 #
 #
